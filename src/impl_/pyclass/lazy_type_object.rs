@@ -45,7 +45,28 @@ impl<T> LazyTypeObject<T> {
             PhantomData,
         )
     }
+
+    pub fn manually_init_as_copy_for_sharing<'py>(&self, py: Python<'py>, source: &Self) -> PyResult<()> {
+        let src_value = source.0.value.get(py).ok_or_else(|| {
+            PyRuntimeError::new_err("expected source LazyTypeObject to have been initialized")
+        })?;
+        if let Some(current) = self.0.value.get(py) {
+            if current.type_object.as_ptr() == src_value.type_object.as_ptr() {
+                return Ok(())
+            } else {
+                return Err(PyRuntimeError::new_err(
+                    "LazyTypeObject was already initialized and does not match",
+                ))
+            }
+        }
+
+        let copied_src_value =
+            PyClassTypeObject::new_copy_for_sharing(&src_value);
+        self.0.value.set(py, copied_src_value);
+        Ok(())
+    }
 }
+
 
 impl<T: PyClass> LazyTypeObject<T> {
     /// Gets the type object contained by this `LazyTypeObject`, initializing it if needed.

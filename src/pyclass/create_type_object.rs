@@ -27,6 +27,19 @@ pub(crate) struct PyClassTypeObject {
     getset_destructors: Vec<GetSetDefDestructor>,
 }
 
+impl PyClassTypeObject {
+    pub(crate) fn new_copy_for_sharing(original: &Self) -> Self {
+        return Python::with_gil(|py| -> PyResult<PyClassTypeObject> {
+            Ok(
+                PyClassTypeObject {
+                    type_object: original.type_object.clone_ref(py),
+                    // Since the original type object will still exist, we need not copy its destructors.
+                    getset_destructors: Vec::new(),
+                })
+        }).unwrap();
+    }
+}
+
 pub(crate) fn create_type_object<T>(py: Python<'_>) -> PyResult<PyClassTypeObject>
 where
     T: PyClass,
